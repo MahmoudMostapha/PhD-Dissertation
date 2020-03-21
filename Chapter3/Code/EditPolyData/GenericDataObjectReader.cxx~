@@ -1,0 +1,78 @@
+#include <vtkGenericDataObjectReader.h>
+#include <vtkStructuredGrid.h>
+#include <vtkSmartPointer.h>
+#include <vtkPolyData.h>
+#include <string>
+#include "vtkDoubleArray.h"
+#include <vtkXMLPolyDataWriter.h>
+#include <vtkPointData.h>
+
+#include "itkImageFileReader.h"
+#include "itkImageFileWriter.h"
+
+
+int main ( int argc, char *argv[] )
+{
+  // Ensure a filename was specified
+  if(argc != 4)
+    {
+    std::cerr << "Usage: " << argv[0] << " InputFilename InputImageFileName OutputFilename" << endl;
+    return EXIT_FAILURE;
+    }
+
+  // Get the filename from the command line
+  std::string inputFilename = argv[1];
+
+  // Get all data from the file
+  vtkSmartPointer<vtkGenericDataObjectReader> reader = 
+      vtkSmartPointer<vtkGenericDataObjectReader>::New();
+  reader->SetFileName(inputFilename.c_str());
+  reader->Update();
+
+  // All of the standard data types can be checked and obtained like this:
+  if(reader->IsFilePolyData())
+    {
+    std::cout << "output is a polydata" << std::endl;
+    vtkPolyData* output = reader->GetPolyDataOutput();
+    std::cout << "output has " << output->GetNumberOfPoints() << " points." << std::endl;
+
+	const unsigned int Dimension = 3;
+	typedef unsigned short                      PixelType;
+	typedef itk::Image< PixelType, Dimension > ImageType;
+
+	typedef itk::ImageFileReader< ImageType >  ReaderType;
+	ReaderType::Pointer Imagereader = ReaderType::New();
+	Imagereader->SetFileName(argv[2]);
+        Imagereader->Update();
+  
+  vtkSmartPointer<vtkDoubleArray> Array = vtkSmartPointer<vtkDoubleArray>::New();
+  Array->SetNumberOfComponents(1);
+  Array->SetName("PixelValue");
+  // Write all of the coordinates of the points in the vtkPolyData to the console.
+  for(vtkIdType i = 0; i < output->GetNumberOfPoints(); i++)
+    {
+    double p[3];
+    output->GetPoint(i,p);
+    // This is identical to:
+    // polydata->GetPoints()->GetPoint(i,p);
+    std::cout << "Point " << i << " : (" << p[0] << " " << p[1] << " " << p[2] << ")" << std::endl;
+    ImageType::IndexType pixelIndex;
+    typedef itk::Point< double, ImageType::ImageDimension > PointType;
+    PointType point;
+    point[0] = p[0];    // x coordinate
+    point[1] = p[1];    // y coordinate
+    point[2] = p[2];    // z coordinate
+    const bool isInside = Imagereader->GetOutput()->TransformPhysicalPointToIndex( point, pixelIndex );
+    ImageType::PixelType pixelValue = Imagereader->GetOutput()->GetPixel( pixelIndex );
+    std::cout << "Pixel Value " << pixelValue << std::endl;
+    Array->InsertNextValue(pixelValue);
+    }
+    output->GetPointData()->SetScalars(Array);
+    vtkSmartPointer<vtkXMLPolyDataWriter> writer = vtkSmartPointer<vtkXMLPolyDataWriter>::New();
+    writer->SetFileName(argv[3]);
+    writer->SetInputData(output);
+    writer->Write();
+    }
+
+  return EXIT_SUCCESS;
+}

@@ -1,0 +1,3 @@
+/work/mahmoudm/SummerWork/Code/CreateOuterImage/bin/CMakeFiles/edit_cache.dir
+/work/mahmoudm/SummerWork/Code/CreateOuterImage/bin/CMakeFiles/rebuild_cache.dir
+/work/mahmoudm/SummerWork/Code/CreateOuterImage/bin/CMakeFiles/CreateOuterImage.dir

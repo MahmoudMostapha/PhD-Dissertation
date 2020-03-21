@@ -1,0 +1,94 @@
+#include "itkImage.h"
+#include "itkBinaryDilateImageFilter.h"
+#include "itkImageFileReader.h"
+#include "itkBinaryBallStructuringElement.h"
+#include "itkImageFileWriter.h"
+#include "itkRescaleIntensityImageFilter.h"
+#include "itkBinaryMorphologicalClosingImageFilter.h"
+ 
+ 
+int main(int argc, char *argv[])
+{
+  if(argc < 3)
+    {
+    std::cerr << "Usage: " << std::endl;
+    std::cerr << argv[0] << " InputImageFile OutputImageFile [closingradius] [dilationradius]" << std::endl;
+    return EXIT_FAILURE;
+    }
+ 
+  typedef itk::Image<unsigned char, 3>    ImageType;
+  typedef itk::ImageFileReader<ImageType> ReaderType;
+  ReaderType::Pointer reader = ReaderType::New();
+  reader->SetFileName(argv[1]);
+
+  ImageType::SpacingType& Spacing = inputimage->GetSpacing();
+
+  unsigned int radius = 60/Spacing[0];
+  if (argc > 3)
+    {
+    radius = atoi(argv[3])/Spacing[0];
+    }
+ 
+  typedef itk::BinaryBallStructuringElement<
+    ImageType::PixelType,3>                  StructuringElementType;
+  StructuringElementType structuringElement;
+  structuringElement.SetRadius(radius);
+  structuringElement.CreateStructuringElement();
+
+  typedef itk::RescaleIntensityImageFilter< ImageType, ImageType > RescaleFilterType;
+  RescaleFilterType::Pointer rescaleFilter = RescaleFilterType::New();
+  rescaleFilter->SetInput(reader->GetOutput());
+  rescaleFilter->SetOutputMinimum(0);
+  rescaleFilter->SetOutputMaximum(255);
+  rescaleFilter->Update();
+
+  typedef itk::BinaryMorphologicalClosingImageFilter <ImageType, ImageType, StructuringElementType>
+          BinaryMorphologicalClosingImageFilterType;
+  BinaryMorphologicalClosingImageFilterType::Pointer closingFilter
+          = BinaryMorphologicalClosingImageFilterType::New();
+  closingFilter->SetInput(rescaleFilter->GetOutput());
+  closingFilter->SetKernel(structuringElement);
+  closingFilter->Update();
+
+  unsigned int radius = 5/Spacing[0];
+  if (argc > 4)
+    {
+    radius = atoi(argv[4])/Spacing[0];
+    }
+
+  structuringElement.SetRadius(radius);
+  structuringElement.CreateStructuringElement();
+
+typedef itk::BinaryDilateImageFilter <ImageType, ImageType, StructuringElementType>
+          BinaryDilateImageFilterType;
+ 
+  BinaryDilateImageFilterType::Pointer dilateFilter
+          = BinaryDilateImageFilterType::New();
+  dilateFilter->SetInput(closingFilter->GetOutput());
+  dilateFilter->SetKernel(structuringElement);
+  dilateFilter->Update();
+
+  rescaleFilter->SetInput(dilateFilter->GetOutput());
+  rescaleFilter->SetOutputMinimum(0);
+  rescaleFilter->SetOutputMaximum(1);
+  rescaleFilter->Update();
+
+ 
+  typedef itk::ImageFileWriter< ImageType >  WriterType;
+  WriterType::Pointer writer = WriterType::New();
+  writer->SetFileName( argv[2] );
+  writer->SetInput( rescaleFilter->GetOutput() );
+  writer->UseCompressionOn ();
+
+  try
+    {
+    writer->Update();
+    }
+  catch( itk::ExceptionObject & e )
+    {
+    std::cerr << "Error: " << e << std::endl;
+    return EXIT_FAILURE;
+    }
+ 
+  return EXIT_SUCCESS;
+}

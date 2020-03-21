@@ -1,0 +1,3 @@
+/work/mahmoudm/SummerWork/Code/EditPolyData/build/CMakeFiles/edit_cache.dir
+/work/mahmoudm/SummerWork/Code/EditPolyData/build/CMakeFiles/EditPolyData.dir
+/work/mahmoudm/SummerWork/Code/EditPolyData/build/CMakeFiles/rebuild_cache.dir

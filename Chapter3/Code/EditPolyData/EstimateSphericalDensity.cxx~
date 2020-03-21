@@ -1,0 +1,193 @@
+#include <vtkGenericDataObjectReader.h>
+#include <vtkStructuredGrid.h>
+#include <vtkSmartPointer.h>
+#include <vtkPolyData.h>
+#include <string>
+#include "vtkDoubleArray.h"
+#include <vtkXMLPolyDataWriter.h>
+#include <vtkPointData.h>
+
+#include "itkImageFileReader.h"
+#include "itkImageFileWriter.h"
+#include "itkNeighborhoodIterator.h"
+#include "itkImageRegionIterator.h"
+#include "itkImageFileWriter.h"
+#include "itkBinaryContourImageFilter.h"
+#include "itkSignedDanielssonDistanceMapImageFilter.h"
+
+#include <iostream>
+#include <fstream>
+#include <cmath>        // std::abs
+
+int main ( int argc, char *argv[] )
+{
+  // Ensure a filename was specified
+  if(argc < 8)
+    {
+    std::cerr << "Usage: " << argv[0] << " InputSurfaceFileName InputSegmentationImageFileName label radius OutputSurfacename OutputCSFDensityCSVName OutputVoxelVistitingMap [InputPialMaskImageFileName]" << endl;
+    return EXIT_FAILURE;
+    }
+
+  // Get the Surface filename from the command line
+  std::string inputSurfaceFilename = argv[1];
+
+  // Get all surface data from the file
+  vtkSmartPointer<vtkGenericDataObjectReader> reader = 
+      vtkSmartPointer<vtkGenericDataObjectReader>::New();
+  reader->SetFileName(inputSurfaceFilename.c_str());
+  reader->Update();
+
+  vtkPolyData* output = reader->GetPolyDataOutput();
+  std::cout << "Input surface has " << output->GetNumberOfPoints() << " points." << std::endl;
+
+  // Get the segmentation filename from the command line
+  std::string inputSegmentationFilename = argv[2];
+
+  // Get all segmentation data from the image
+  const unsigned int Dimension = 3;
+  typedef double                      PixelType;
+  typedef itk::Image< PixelType, Dimension > ImageType;
+  typedef itk::ImageFileReader< ImageType >  ReaderType;
+  ReaderType::Pointer Imagereader = ReaderType::New();
+  Imagereader->SetFileName(inputSegmentationFilename.c_str());
+  Imagereader->Update();
+
+  typedef itk::BinaryContourImageFilter <ImageType,
+	ImageType> Contourizer;
+  typedef itk::SignedDanielssonDistanceMapImageFilter<
+                                         ImageType,
+                                         ImageType,
+                                         ImageType >  FilterType;
+  typedef FilterType::VectorImageType   OffsetImageType;
+  OffsetImageType::Pointer OffsetImage = OffsetImageType::New();;
+
+ if(argc == 9)
+    {
+std::cout << "Mask Image Used... "  << std::endl;
+ // Get the Mask filename from the command line
+  std::string InputPialMaskImageFileName = argv[8];
+  ReaderType::Pointer Maskreader = ReaderType::New();
+  Maskreader->SetFileName(InputPialMaskImageFileName.c_str());
+  Maskreader->Update();
+// Extract Contour Image from the Mask Image
+std::cout << "Extracting Contour Image... "  << std::endl;
+	Contourizer::Pointer contour = Contourizer::New();
+	contour->SetInput(Maskreader->GetOutput());
+	contour->SetFullyConnected(false); // true makes thicker contours
+	contour->SetBackgroundValue(0);
+	contour->SetForegroundValue(1); // the value of your binary mask
+	contour->Update();
+ // Calculate Distance Map 
+std::cout << "Calculating Distance Map... "  << std::endl;
+FilterType::Pointer filter = FilterType::New();
+filter->SetInput( Maskreader->GetOutput() );
+OffsetImage = filter->GetVectorDistanceMap();
+filter->Update();
+   }
+std::cout << "Initializing Voxel Visiting Map... "  << std::endl;
+  ImageType::Pointer inputimage  = Imagereader->GetOutput();
+  ImageType::Pointer outputimage = ImageType::New();
+  outputimage->CopyInformation(inputimage);
+  outputimage->SetRegions(inputimage->GetRequestedRegion());
+  outputimage->Allocate();
+typedef itk::ImageRegionIterator< ImageType>       IteratorType;
+	IteratorType      outputIt(outputimage, outputimage->GetRequestedRegion());
+	outputIt.GoToBegin();
+	while (!outputIt.IsAtEnd())
+	{
+	outputIt.Set(0);
+	++outputIt;
+	}
+std::cout << "Initializing Neigbourhood Iterator... "  << std::endl;
+ // Initializes the iterator
+  typedef itk::NeighborhoodIterator<ImageType> NeighborhoodIterator;
+  NeighborhoodIterator::RadiusType radius;
+  const ImageType::SpacingType& Spacing = inputimage->GetSpacing();
+  for (unsigned int i = 0; i < ImageType::ImageDimension; ++i) radius[i] = atoi(argv[4])/Spacing[i];
+
+  vtkSmartPointer<vtkDoubleArray> Array = vtkSmartPointer<vtkDoubleArray>::New();
+  Array->SetNumberOfComponents(1);
+  Array->SetName("Density");
+
+  ofstream Result;
+  Result.open (argv[6]);
+  // Write all of the coordinates of the points in the vtkPolyData to the console.
+  for(vtkIdType i = 0; i < output->GetNumberOfPoints(); i++)
+    {
+    std::cout << "Processing Vertex " << i << std::endl;
+    double p[3];
+    output->GetPoint(i,p);
+    ImageType::IndexType pixelIndex;
+    ImageType::IndexType surfacepixelIndex;
+    typedef itk::Point< double, ImageType::ImageDimension > PointType;
+    PointType point;
+    point[0] = std::abs(p[0]);    // x coordinate
+    point[1] = std::abs(p[1]);    // y coordinate
+    point[2] = std::abs(p[2]);    // z coordinate
+    std::cout << "Corresponding Physical Point " << point << std::endl;
+
+    const bool isInside = inputimage->TransformPhysicalPointToIndex( point, pixelIndex );
+
+    std::cout << "Corresponding Pixel Index " << pixelIndex << std::endl;
+    surfacepixelIndex = pixelIndex;
+  
+    // Get Corresponding SurfacePixelIndex
+    if(argc == 9)
+    {
+    std::cout << "Corresponding Offset Index " << OffsetImage->GetPixel( pixelIndex ) << std::endl;
+    surfacepixelIndex = pixelIndex + OffsetImage->GetPixel( pixelIndex );
+    std::cout << "Corresponding Surface Index " << surfacepixelIndex << std::endl;
+    }
+
+    ImageType::RegionType ItRegion;
+    ImageType::SizeType ItSize;
+    ItSize[0] = 1;
+    ItSize[1] = 1;
+    ItSize[2] = 1;
+    ItRegion.SetSize(ItSize);
+    ItRegion.SetIndex(surfacepixelIndex);
+
+  std::cout << "Setting Neigbourhood Iterator with radius " << radius << std::endl;
+  NeighborhoodIterator it(radius, inputimage, ItRegion);
+  ImageType::PixelType CSFDensity = 0.0;
+  std::cout << "Iterator Current Size " << it.Size() << " pixels." << std::endl;
+  for (unsigned int j = 0; j < it.Size(); ++j)
+        {   
+        std::cout << "Iterator Index " << it.GetIndex(j) << std::endl;
+        ImageType::PixelType CurrentCount = outputimage->GetPixel(it.GetIndex(j)) + 1.0;
+        outputimage->SetPixel(it.GetIndex(j), CurrentCount);
+
+          if (it.GetPixel(j) == atoi(argv[3]))
+          {
+          CSFDensity += Spacing[0]*Spacing[1]*Spacing[2];  
+          }
+        }
+
+    Array->InsertNextValue(CSFDensity);
+    Result << CSFDensity << endl; 
+    }
+    Result.close();
+
+    output->GetPointData()->SetScalars(Array);
+    vtkSmartPointer<vtkXMLPolyDataWriter> writer = vtkSmartPointer<vtkXMLPolyDataWriter>::New();
+    writer->SetFileName(argv[5]);
+    writer->SetInputData(output);
+    writer->Write();
+
+    typedef itk::ImageFileWriter< ImageType > WriterType;
+	WriterType::Pointer Imagewriter = WriterType::New();
+	Imagewriter->SetInput(outputimage);
+	Imagewriter->SetFileName(argv[7]);
+
+	try
+	{
+		Imagewriter->Update();
+	}
+	catch (itk::ExceptionObject & error)
+	{
+		std::cerr << "Error: " << error << std::endl;
+		return EXIT_FAILURE;
+	}
+
+    return EXIT_SUCCESS;
+}

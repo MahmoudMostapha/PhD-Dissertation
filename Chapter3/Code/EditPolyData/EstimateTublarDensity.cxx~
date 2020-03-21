@@ -1,0 +1,213 @@
+#include <vtkGenericDataObjectReader.h>
+#include <vtkStructuredGrid.h>
+#include <vtkSmartPointer.h>
+#include <vtkPolyData.h>
+#include "vtkDoubleArray.h"
+#include <vtkXMLPolyDataWriter.h>
+#include <vtkPointData.h>
+#include <vtkWarpVector.h>
+#include <vtkPolyDataNormals.h>
+#include <vtkDataSetAttributes.h>
+#include <vtkLine.h>
+#include <vtkCellArray.h>
+#include <vtkTubeFilter.h>
+#include <vtkLineSource.h>
+#include <vtkPointSource.h>
+#include <vtkMath.h>
+#include "vtkSelectEnclosedPoints.h"
+#include "vtkThresholdPoints.h"
+
+#include "itkImageFileReader.h"
+#include "itkImageFileWriter.h"
+#include "itkImageFileWriter.h"
+#include "itkBinaryThresholdImageFilter.h"
+
+
+#include <iostream>
+#include <fstream>
+#include <cmath>        // std::abs
+#include <string>
+#include <limits>       // std::numeric_limits
+
+int main ( int argc, char *argv[] )
+{
+  // Ensure a filename was specified
+  if(argc < 9)
+    {
+    std::cerr << "Usage: " << argv[0] << " InputSurfaceFileName InputSegmentationImageFileName label DilationScale Radius OutputSurfacename OutputCSFDensityCSVName OutputVoxelVistitingMap" << endl;
+    return EXIT_FAILURE;
+    }
+
+  // Get the Surface filename from the command line
+  std::string inputSurfaceFilename = argv[1];
+
+  // Get all surface data from the file
+  vtkSmartPointer<vtkGenericDataObjectReader> reader = 
+      vtkSmartPointer<vtkGenericDataObjectReader>::New();
+  reader->SetFileName(inputSurfaceFilename.c_str());
+  reader->Update();
+
+  vtkPolyData* inputPolyData = reader->GetPolyDataOutput();
+  std::cout << "Input surface has " << inputPolyData->GetNumberOfPoints() << " points." << std::endl;
+
+  // Generate normals
+  vtkSmartPointer<vtkPolyDataNormals> normals =
+    vtkSmartPointer<vtkPolyDataNormals>::New();
+  normals->SetInputData(inputPolyData);
+  normals->SplittingOff();
+
+  // Warp using the normals
+  vtkSmartPointer<vtkWarpVector> warp =
+    vtkSmartPointer<vtkWarpVector>::New();
+  warp->SetInputConnection (normals->GetOutputPort());
+  warp->SetInputArrayToProcess(0, 0, 0,
+                               vtkDataObject::FIELD_ASSOCIATION_POINTS,
+                               vtkDataSetAttributes::NORMALS);
+  warp->SetScaleFactor(std::atoi(argv[4]));
+  warp->Update();
+
+  vtkPolyData* DilatedPolyData = warp->GetPolyDataOutput();
+  std::cout << "Dilated surface has " << DilatedPolyData->GetNumberOfPoints() << " points." << std::endl;
+
+  // Get the segmentation filename from the command line
+  std::string inputSegmentationFilename = argv[2];
+  // Get all segmentation data from the image
+  const unsigned int Dimension = 3;
+  typedef double                      PixelType;
+  typedef itk::Image< PixelType, Dimension > ImageType;
+  typedef itk::ImageFileReader< ImageType >  ReaderType;
+  ReaderType::Pointer Imagereader = ReaderType::New();
+  Imagereader->SetFileName(inputSegmentationFilename.c_str());
+  Imagereader->Update();
+std::cout << "Initializing Voxel Visiting Map... "  << std::endl;
+  ImageType::Pointer inputimage  = Imagereader->GetOutput();
+  const ImageType::SpacingType& Spacing = inputimage->GetSpacing();
+  ImageType::Pointer outputimage = ImageType::New();
+  outputimage->CopyInformation(inputimage);
+  outputimage->SetRegions(inputimage->GetRequestedRegion());
+  outputimage->Allocate();
+typedef itk::ImageRegionIterator< ImageType>       IteratorType;
+	IteratorType      outputIt(outputimage, outputimage->GetRequestedRegion());
+	outputIt.GoToBegin();
+	while (!outputIt.IsAtEnd())
+	{
+	outputIt.Set(0);
+	++outputIt;
+	}
+
+  vtkSmartPointer<vtkDoubleArray> Array = vtkSmartPointer<vtkDoubleArray>::New();
+  Array->SetNumberOfComponents(1);
+  Array->SetName("Density");
+
+  ofstream Result;
+  Result.open (argv[7]);
+  for(vtkIdType i = 0; i < inputPolyData->GetNumberOfPoints(); i++)
+    {
+	    std::cout << "Processing Vertex " << i << std::endl;
+	  // Create a line
+	  vtkSmartPointer<vtkLineSource> lineSource = 
+	    vtkSmartPointer<vtkLineSource>::New();
+	  double p1[3];
+	  inputPolyData->GetPoint(i,p1);
+	  lineSource->SetPoint1(p1);
+	  double p2[3];
+	  warp->GetPolyDataOutput()->GetPoint(i,p2);
+	  lineSource->SetPoint2(p2);
+	 // Create a tube (cylinder) around the line
+	  vtkSmartPointer<vtkTubeFilter> tubeFilter = 
+	    vtkSmartPointer<vtkTubeFilter>::New();
+	  tubeFilter->SetInputConnection(lineSource->GetOutputPort());
+	  tubeFilter->SetRadius(std::atoi(argv[5])); //default is .5
+	  tubeFilter->SetNumberOfSides(100);
+	  tubeFilter->Update();
+	// Create a point cloud
+	  vtkSmartPointer<vtkPointSource> pointSource =
+	    vtkSmartPointer<vtkPointSource>::New();
+	  double center[3];
+	  vtkMath::Add (p1,p2,center);
+	  vtkMath::MultiplyScalar(center, 0.5);
+	  pointSource->SetCenter(center);
+	  pointSource->SetNumberOfPoints(100);
+	  double radius = (sqrt(vtkMath::Distance2BetweenPoints(p1, p2)))/2;
+	  pointSource->SetRadius(radius);
+	  pointSource->Update();
+	// Select points only inside the Tube
+	  vtkSelectEnclosedPoints *select = vtkSelectEnclosedPoints::New();
+	  select->SetInputData(pointSource->GetOutput());
+	  select->SetSurfaceConnection(tubeFilter->GetOutputPort());
+	  select->Update();
+	  vtkThresholdPoints *thresh = vtkThresholdPoints::New();
+	  thresh->SetInputConnection(select->GetOutputPort());
+	  thresh->SetInputArrayToProcess(0,0,0, vtkDataObject::FIELD_ASSOCIATION_POINTS,"SelectedPoints");
+	  thresh->ThresholdByUpper(0.9);
+	  thresh->Update();
+	  vtkPolyData* SampledPoints = thresh->GetOutput();
+	  std::cout << "Number of points Generated inside the Tube are " << SampledPoints->GetNumberOfPoints() << " points." << std::endl;
+
+	 double CSFDensity = 0.0;
+	 for(vtkIdType j = 0; j < SampledPoints->GetNumberOfPoints(); j++)
+	    {
+
+		    double p[3];
+		    SampledPoints->GetPoint(j,p);
+		    typedef itk::Point< double, ImageType::ImageDimension > PointType;
+		    PointType point;
+		    point[0] = std::abs(p[0]);    // x coordinate
+		    point[1] = std::abs(p[1]);    // y coordinate
+		    point[2] = std::abs(p[2]);    // z coordinate
+		    ImageType::IndexType pixelIndex;
+		    const bool isInside = inputimage->TransformPhysicalPointToIndex( point, pixelIndex );
+
+		    ImageType::PixelType SegValue = inputimage->GetPixel(pixelIndex);
+		    ImageType::PixelType Visited = outputimage->GetPixel(pixelIndex);
+		    
+		    if (Visited != j) //pixel not visited in the current vertex iteration
+		    {
+			  if (SegValue == std::atoi(argv[3]))
+			  {
+			  CSFDensity += Spacing[0]*Spacing[1]*Spacing[2];  
+			  }
+			  outputimage->SetPixel(pixelIndex, j); // Mark this pixel visited in current vertex
+		    }
+	    }
+	    Array->InsertNextValue(CSFDensity);
+	    Result << CSFDensity << endl; 
+
+    }
+    Result.close();
+
+    inputPolyData->GetPointData()->SetScalars(Array);
+    vtkSmartPointer<vtkXMLPolyDataWriter> writer = vtkSmartPointer<vtkXMLPolyDataWriter>::New();
+    writer->SetFileName(argv[6]);
+    writer->SetInputData(inputPolyData);
+    writer->Write();
+
+    typedef itk::BinaryThresholdImageFilter <ImageType, ImageType>
+    BinaryThresholdImageFilterType;
+ 
+    BinaryThresholdImageFilterType::Pointer thresholdFilter
+    = BinaryThresholdImageFilterType::New();
+    thresholdFilter->SetInput(outputimage);
+    thresholdFilter->SetLowerThreshold(std::numeric_limits<PixelType>::min()+1);
+    thresholdFilter->SetUpperThreshold(std::numeric_limits<PixelType>::max());
+    thresholdFilter->SetInsideValue(1);
+    thresholdFilter->SetOutsideValue(0);
+    thresholdFilter->Update();
+
+    typedef itk::ImageFileWriter< ImageType > WriterType;
+	WriterType::Pointer Imagewriter = WriterType::New();
+	Imagewriter->SetInput(thresholdFilter->GetOutput());
+	Imagewriter->SetFileName(argv[8]);
+
+	try
+	{
+		Imagewriter->Update();
+	}
+	catch (itk::ExceptionObject & error)
+	{
+		std::cerr << "Error: " << error << std::endl;
+		return EXIT_FAILURE;
+	}
+
+    return EXIT_SUCCESS;
+}

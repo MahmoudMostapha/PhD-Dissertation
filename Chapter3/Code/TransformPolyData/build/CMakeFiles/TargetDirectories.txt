@@ -1,0 +1,3 @@
+/work/mahmoudm/SummerWork/Code/TransformPolyData/build/CMakeFiles/TransformPolyData.dir
+/work/mahmoudm/SummerWork/Code/TransformPolyData/build/CMakeFiles/edit_cache.dir
+/work/mahmoudm/SummerWork/Code/TransformPolyData/build/CMakeFiles/rebuild_cache.dir
