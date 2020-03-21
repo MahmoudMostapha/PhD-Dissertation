@@ -1,3 +1,3 @@
-# Local-EACSF: Extraction of Local Extra-Axial Cerebrospinal Fluid 
+# Extraction of Local Extra-Axial Cerebrospinal Fluid 
 
 
