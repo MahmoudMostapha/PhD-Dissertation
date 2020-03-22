@@ -1,0 +1,86 @@
+#include <vtkVersion.h>
+#include <vtkCellData.h>
+#include <vtkDoubleArray.h>
+#include <vtkFloatArray.h>
+#include <vtkPoints.h>
+#include <vtkPolyData.h>
+#include <vtkPolyDataNormals.h>
+#include <vtkPointData.h>
+#include <vtkSmartPointer.h>
+#include <vtkPolyDataReader.h>
+#include <vtkPolyDataWriter.h>
+
+int main(int argc, char *argv[])
+{
+    
+// Read File
+std::string inputSurfaceFilename = argv[1]; //first command line argument
+std::cout << "Reading file " << inputSurfaceFilename << "..." << std::endl;
+
+// Get all surface data from the file
+vtkSmartPointer<vtkPolyDataReader> surfacereader =
+vtkSmartPointer<vtkPolyDataReader>::New();
+surfacereader->SetFileName(inputSurfaceFilename.c_str());
+surfacereader->Update();
+
+vtkPolyData* polydata = surfacereader->GetOutput();
+std::cout << "Input surface has " << polydata->GetNumberOfPoints() << " points." << std::endl;
+
+// Generate normals
+vtkSmartPointer<vtkPolyDataNormals> normalGenerator = vtkSmartPointer<vtkPolyDataNormals>::New();
+normalGenerator->SetInputData(polydata);
+normalGenerator->ComputePointNormalsOn();
+normalGenerator->ComputeCellNormalsOff();
+normalGenerator->Update();
+polydata = normalGenerator->GetOutput();
+
+vtkFloatArray* normalDataFloat =
+vtkFloatArray::SafeDownCast(polydata->GetPointData()->GetArray("Normals"));
+
+if(normalDataFloat)
+{
+int nc = normalDataFloat->GetNumberOfTuples();
+std::cout << "There are " << nc
+    << " components in normalDataFloat" << std::endl;
+}
+
+vtkSmartPointer<vtkDoubleArray> N1 = vtkSmartPointer<vtkDoubleArray>::New();
+N1->SetNumberOfComponents(1);
+N1->SetName("N1");
+
+vtkSmartPointer<vtkDoubleArray> N2 = vtkSmartPointer<vtkDoubleArray>::New();
+N2->SetNumberOfComponents(1);
+N2->SetName("N2");
+
+vtkSmartPointer<vtkDoubleArray> N3 = vtkSmartPointer<vtkDoubleArray>::New();
+N3->SetNumberOfComponents(1);
+N3->SetName("N3");
+
+for(vtkIdType Vertex_ID = 0; Vertex_ID < polydata->GetNumberOfPoints(); Vertex_ID++)
+{
+
+double testDouble[3];
+normalDataFloat->GetTuple(Vertex_ID, testDouble);
+
+std::cout << "Double: " << testDouble[0] << " "
+      << testDouble[1] << " " << testDouble[2] << std::endl;
+
+N1->InsertNextValue(testDouble[0]);
+N2->InsertNextValue(testDouble[1]);
+N3->InsertNextValue(testDouble[2]);
+
+}
+
+polydata->GetPointData()->AddArray(N1);
+polydata->GetPointData()->AddArray(N2);
+polydata->GetPointData()->AddArray(N3);
+
+vtkSmartPointer<vtkPolyDataWriter> polywriter = vtkSmartPointer<vtkPolyDataWriter>::New();
+polywriter->SetFileName("output.vtk");
+polywriter->SetInputData(polydata);
+polywriter->Write();
+  
+  return EXIT_SUCCESS;
+}
+
+

@@ -1,0 +1,116 @@
+#include <vtkGenericDataObjectReader.h>
+#include <vtkStructuredGrid.h>
+#include <vtkSmartPointer.h>
+#include <vtkPolyData.h>
+#include "vtkDoubleArray.h"
+#include <vtkXMLPolyDataWriter.h>
+#include <vtkPointData.h>
+#include <vtkWarpVector.h>
+#include <vtkPolyDataNormals.h>
+#include <vtkDataSetAttributes.h>
+#include <vtkLine.h>
+#include <vtkCellArray.h>
+#include <vtkTubeFilter.h>
+#include <vtkLineSource.h>
+#include <vtkPointSource.h>
+#include <vtkMath.h>
+#include "vtkSelectEnclosedPoints.h"
+#include "vtkThresholdPoints.h"
+#include <vtkCellArray.h>
+#include <vtkIdList.h>
+#include <vtkDelaunay3D.h>
+#include <vtkDataSetSurfaceFilter.h>
+#include <vtkCenterOfMass.h>
+#include <vtkCellArray.h>
+#include <vtkCellData.h>
+#include <vtkPolyDataWriter.h>
+#include <vtkMassProperties.h>
+#include <vtkCleanPolyData.h>
+#include <vtkPolyDataPointSampler.h>
+#include <vtkSurfaceReconstructionFilter.h>
+#include <vtkTriangle.h>
+
+#include "itkImageFileReader.h"
+#include "itkImageFileWriter.h"
+#include "itkImageFileWriter.h"
+#include "itkBinaryThresholdImageFilter.h"
+#include <itkLinearInterpolateImageFunction.h>
+
+#include <iostream>
+#include <fstream>
+#include <cmath>        // std::abs
+#include <string>
+#include <limits>       // std::numeric_limits
+#include <ctime>// include this header 
+#include <algorithm>// include this header 
+#include <math.h>     
+
+int main ( int argc, char *argv[] )
+{
+  // Ensure a filename was specified
+  if(argc < 3)
+    {
+    std::cerr << "Usage: " << argv[0] << " InputSurfaceFileName InputSphereFileName" << endl;
+    return EXIT_FAILURE;
+    }
+
+  // Get the Surface filename from the command line
+  std::string inputSurfaceFilename = argv[1];
+
+  // Get all surface data from the file
+  vtkSmartPointer<vtkGenericDataObjectReader> surfacereader = 
+      vtkSmartPointer<vtkGenericDataObjectReader>::New();
+  surfacereader->SetFileName(inputSurfaceFilename.c_str());
+  surfacereader->Update();
+
+  vtkPolyData* inputPolyData = surfacereader->GetPolyDataOutput();
+  std::cout << "Input surface has " << inputPolyData->GetNumberOfPoints() << " points." << std::endl;
+
+// Get the Outer Streamlines filename from the command line
+  std::string inputSphereFilename = argv[2];
+
+  vtkSmartPointer<vtkGenericDataObjectReader> inputSpherereader = 
+      vtkSmartPointer<vtkGenericDataObjectReader>::New();
+  inputSpherereader->SetFileName(inputSphereFilename.c_str());
+  inputSpherereader->Update();
+
+  vtkPolyData* inputSphereData = inputSpherereader->GetPolyDataOutput();
+  std::cout << "Input sphere has " << inputSphereData->GetNumberOfPoints() << " points." << std::endl;
+
+  vtkSmartPointer<vtkDoubleArray> Array1 = vtkSmartPointer<vtkDoubleArray>::New();
+  Array1->SetNumberOfComponents(1);
+  Array1->SetName("Phi");
+
+  vtkSmartPointer<vtkDoubleArray> Array2 = vtkSmartPointer<vtkDoubleArray>::New();
+  Array2->SetNumberOfComponents(1);
+  Array2->SetName("Theta");
+
+  int start_s=clock();
+  for(vtkIdType ID = 0; ID < inputPolyData->GetNumberOfPoints(); ID++)
+    {
+      double p[3];
+      inputSphereData->GetPoint(ID,p);
+      double x = p[0];
+      double y = p[1];
+      double z = p[2];
+
+      double Phi = std::acos(z);
+      double Theta = std::acos(x/(std::sin(Phi)));
+
+      Array1->InsertNextValue(Phi);
+      Array2->InsertNextValue(Theta);
+
+    }
+
+      inputPolyData->GetPointData()->AddArray(Array1);
+      inputPolyData->GetPointData()->AddArray(Array2);
+
+      vtkSmartPointer<vtkPolyDataWriter> polywriter = vtkSmartPointer<vtkPolyDataWriter>::New();
+      polywriter->SetFileName(argv[1]);
+      polywriter->SetInputData(inputPolyData);
+      polywriter->Write();
+
+    int stop_s=clock();
+    cout << "time: " << (((float)(stop_s-start_s))/CLOCKS_PER_SEC)/60 <<" min" << endl;
+    return EXIT_SUCCESS;
+}

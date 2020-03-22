@@ -1,0 +1,3 @@
+/work/mahmoudm/Subcortical_Processing/Code/SortDataArray/build/CMakeFiles/edit_cache.dir
+/work/mahmoudm/Subcortical_Processing/Code/SortDataArray/build/CMakeFiles/rebuild_cache.dir
+/work/mahmoudm/Subcortical_Processing/Code/SortDataArray/build/CMakeFiles/SortDataArray.dir

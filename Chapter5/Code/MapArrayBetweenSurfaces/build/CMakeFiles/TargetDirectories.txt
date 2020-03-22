@@ -1,0 +1,3 @@
+/work/mahmoudm/Subcortical_Processing/Code/MapArrayBetweenSurfaces/build/CMakeFiles/MapArrayBetweenSurfaces.dir
+/work/mahmoudm/Subcortical_Processing/Code/MapArrayBetweenSurfaces/build/CMakeFiles/edit_cache.dir
+/work/mahmoudm/Subcortical_Processing/Code/MapArrayBetweenSurfaces/build/CMakeFiles/rebuild_cache.dir

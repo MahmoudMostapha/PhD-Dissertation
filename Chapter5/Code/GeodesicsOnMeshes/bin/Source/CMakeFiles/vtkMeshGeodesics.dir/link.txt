@@ -1,0 +1,2 @@
+/usr/bin/ar qc ../bin/libvtkMeshGeodesics.a  CMakeFiles/vtkMeshGeodesics.dir/vtkPolyDataGeodesicDistance.cxx.o CMakeFiles/vtkMeshGeodesics.dir/vtkFastMarchingGeodesicDistance.cxx.o CMakeFiles/vtkMeshGeodesics.dir/vtkFastMarchingGeodesicPath.cxx.o CMakeFiles/vtkMeshGeodesics.dir/vtkPolygonalSurfaceContourLineInterpolator2.cxx.o
+/usr/bin/ranlib ../bin/libvtkMeshGeodesics.a

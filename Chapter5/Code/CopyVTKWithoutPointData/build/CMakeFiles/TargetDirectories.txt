@@ -1,0 +1,3 @@
+/work/mahmoudm/Subcortical_Processing/Code/CopyVTKWithoutPointData/build/CMakeFiles/edit_cache.dir
+/work/mahmoudm/Subcortical_Processing/Code/CopyVTKWithoutPointData/build/CMakeFiles/rebuild_cache.dir
+/work/mahmoudm/Subcortical_Processing/Code/CopyVTKWithoutPointData/build/CMakeFiles/CopyVTKWithoutPointData.dir

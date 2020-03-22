@@ -1,0 +1,11 @@
+
+cmake_minimum_required(VERSION 2.8)
+ 
+PROJECT(MapThicknessToSpharmSurface)
+ 
+find_package(VTK REQUIRED)
+include(${VTK_USE_FILE})
+ 
+add_executable(MapThicknessToSpharmSurface MACOSX_BUNDLE MapThicknessToSpharmSurface.cxx )
+ 
+target_link_libraries(MapThicknessToSpharmSurface ${VTK_LIBRARIES})

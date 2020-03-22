@@ -1,0 +1,3 @@
+/work/mahmoudm/Subcortical_Processing/Code/ConvertToASCII/build/CMakeFiles/ConvertToASCII.dir
+/work/mahmoudm/Subcortical_Processing/Code/ConvertToASCII/build/CMakeFiles/edit_cache.dir
+/work/mahmoudm/Subcortical_Processing/Code/ConvertToASCII/build/CMakeFiles/rebuild_cache.dir

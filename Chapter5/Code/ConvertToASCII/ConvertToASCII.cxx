@@ -1,0 +1,76 @@
+#include <vtkGenericDataObjectReader.h>
+#include <vtkStructuredGrid.h>
+#include <vtkSmartPointer.h>
+#include <vtkPolyData.h>
+#include "vtkDoubleArray.h"
+#include <vtkXMLPolyDataWriter.h>
+#include <vtkPointData.h>
+#include <vtkWarpVector.h>
+#include <vtkPolyDataNormals.h>
+#include <vtkDataSetAttributes.h>
+#include <vtkLine.h>
+#include <vtkCellArray.h>
+#include <vtkTubeFilter.h>
+#include <vtkLineSource.h>
+#include <vtkPointSource.h>
+#include <vtkMath.h>
+#include "vtkSelectEnclosedPoints.h"
+#include "vtkThresholdPoints.h"
+#include <vtkCellArray.h>
+#include <vtkIdList.h>
+#include <vtkDelaunay3D.h>
+#include <vtkDataSetSurfaceFilter.h>
+#include <vtkCenterOfMass.h>
+#include <vtkCellArray.h>
+#include <vtkCellData.h>
+#include <vtkPolyDataWriter.h>
+#include <vtkMassProperties.h>
+#include <vtkCleanPolyData.h>
+#include <vtkPolyDataPointSampler.h>
+#include <vtkSurfaceReconstructionFilter.h>
+#include <vtkTriangle.h>
+
+#include "itkImageFileReader.h"
+#include "itkImageFileWriter.h"
+#include "itkImageFileWriter.h"
+#include "itkBinaryThresholdImageFilter.h"
+#include <itkLinearInterpolateImageFunction.h>
+
+#include <iostream>
+#include <fstream>
+#include <cmath>        // std::abs
+#include <string>
+#include <limits>       // std::numeric_limits
+#include <ctime>// include this header 
+#include <algorithm>// include this header 
+#include <math.h>     
+
+int main ( int argc, char *argv[] )
+{
+  // Ensure a filename was specified
+  if(argc < 2)
+    {
+    std::cerr << "Usage: " << argv[0] << " InputSurfaceFileName" << endl;
+    return EXIT_FAILURE;
+    }
+
+  // Get the Surface filename from the command line
+  std::string inputSurfaceFilename = argv[1];
+
+  // Get all surface data from the file
+  vtkSmartPointer<vtkGenericDataObjectReader> surfacereader = 
+      vtkSmartPointer<vtkGenericDataObjectReader>::New();
+  surfacereader->SetFileName(inputSurfaceFilename.c_str());
+  surfacereader->Update();
+
+  vtkPolyData* inputPolyData = surfacereader->GetPolyDataOutput();
+  std::cout << "Input surface has " << inputPolyData->GetNumberOfPoints() << " points." << std::endl;
+
+  vtkSmartPointer<vtkPolyDataWriter> polywriter = vtkSmartPointer<vtkPolyDataWriter>::New();
+  polywriter->SetFileName(argv[1]);
+  polywriter->SetInputData(inputPolyData);
+  polywriter->SetFileTypeToASCII();
+  polywriter->Write();
+
+    return EXIT_SUCCESS;
+}

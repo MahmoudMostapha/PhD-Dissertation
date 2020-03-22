@@ -1,0 +1,71 @@
+#include <vtkSmartPointer.h>
+#include <vtkCellLocator.h>
+#include <vtkPolyData.h>
+#include <vtkPointData.h>
+#include <vtkCellData.h>
+#include <vtkDoubleArray.h>
+#include <vtkFloatArray.h>
+#include <vtkIdList.h>
+#include <vtkCell.h>
+#include <vtkPolyDataWriter.h>
+#include <vtkPolyDataReader.h>
+#include <iostream>
+#include <sstream>
+#include <fstream>
+#include <string>
+
+int main ( int argc, char *argv[] )
+{
+  // Ensure a filename was specified
+  if(argc < 4)
+  {
+  std::cerr << "Usage: " << argv[0] << "InputVtkFileName OutputVtkFileName ArrayNumber" << endl;
+  return EXIT_FAILURE;
+  }
+
+  // Read the Surfaces
+  vtkSmartPointer<vtkPolyDataReader> reader1 =
+  vtkSmartPointer<vtkPolyDataReader>::New();
+  reader1->SetFileName(argv[1]);
+  reader1->Update();
+  vtkPolyData* InputSurface = reader1->GetOutput();
+  std::cout << "Input Surface has " << InputSurface->GetNumberOfPoints() << " points." << std::endl;
+
+  vtkIdType numberOfPointArrays = InputSurface->GetPointData()->GetNumberOfArrays();
+  std::cout << "Number of PointData arrays: " << numberOfPointArrays << std::endl;
+
+  int dataTypeID;
+  for(vtkIdType i = 0; i < numberOfPointArrays; i++)
+    {
+    // The following two lines are equivalent
+    //arrayNames.push_back(polydata->GetPointData()->GetArray(i)->GetName());
+    //arrayNames.push_back(polydata->GetPointData()->GetArrayName(i));
+    dataTypeID = InputSurface->GetPointData()->GetArray(i)->GetDataType();
+    std::cout << "Array " << i << ": " << InputSurface->GetPointData()->GetArrayName(i)
+              << " (type: " << dataTypeID << ")" << std::endl;
+    }
+
+  std::cout << "Selected Float Array Name is " << InputSurface->GetPointData()->GetArrayName(atoi(argv[3]))  << std::endl;
+  vtkSmartPointer<vtkFloatArray> Array = vtkFloatArray::SafeDownCast(InputSurface->GetPointData()->GetArray(atoi(argv[3])));
+
+  if (Array == 0)
+     {
+        std::cout << "Error Reading the array" << std::endl;
+     }
+
+  vtkSmartPointer<vtkPolyDataReader> reader2 =
+  vtkSmartPointer<vtkPolyDataReader>::New();
+  reader2->SetFileName(argv[2]);
+  reader2->Update();
+  vtkPolyData* OutputSurface = reader2->GetOutput();
+  std::cout << "Output Surface has " << OutputSurface->GetNumberOfPoints() << " points." << std::endl;
+
+  OutputSurface->GetPointData()->AddArray(Array);
+
+  vtkSmartPointer<vtkPolyDataWriter> polywriter = vtkSmartPointer<vtkPolyDataWriter>::New();
+  polywriter->SetFileName(argv[2]);
+  polywriter->SetInputData(OutputSurface);
+  polywriter->Write();
+  
+  return EXIT_SUCCESS;
+}

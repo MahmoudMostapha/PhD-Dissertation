@@ -1,0 +1,58 @@
+#include <vtkSmartPointer.h>
+#include <vtkPolyDataReader.h>
+#include "vtkIdList.h"
+#include <vtkPolyDataWriter.h>
+#include <vtkFloatArray.h>
+#include <vtkPointData.h>
+#include <vtkPolyData.h>
+#include <vtkPointData.h>
+#include <vtkCellData.h>
+#include <vtkFastMarchingGeodesicPath.h>
+
+int main(int argc, char* argv[])
+{
+  if (argc < 3)
+    {
+    std::cerr << "Usage: " << argv[0] << "SurfaceMesh.vtk StartVertexID EndtVertexID" << std::endl;
+    return EXIT_FAILURE;
+    }
+
+  // Get all surface data from the file
+  vtkSmartPointer<vtkPolyDataReader> surfacereader =
+  vtkSmartPointer<vtkPolyDataReader>::New();
+  surfacereader->SetFileName(argv[1]);
+  surfacereader->Update();
+
+  vtkPolyData* inputPolyData = surfacereader->GetOutput();
+  std::cout << "Input surface has " << inputPolyData->GetNumberOfPoints() << " points." << std::endl;
+
+  vtkIdType Start = atoi(argv[2]);
+  std::cout << "Starting from Vertex " << Start << std::endl;
+
+  // Add the Start Seed
+  vtkSmartPointer<vtkIdList> seed =
+      vtkSmartPointer<vtkIdList>::New();
+  seed->InsertNextId(atoi(argv[3]));
+  std::cout << "Starting from Vertex " << seed->GetId(0) << std::endl;
+
+
+  // Extract Path
+  vtkSmartPointer<vtkFastMarchingGeodesicPath> Geodesicpath =
+  vtkSmartPointer<vtkFastMarchingGeodesicPath>::New();
+  Geodesicpath->SetBeginPointId(Start);
+  Geodesicpath->SetSeeds(seed);
+  Geodesicpath->SetInputConnection(0,surfacereader->GetOutputPort());
+  Geodesicpath->Update();
+  std::cout << "Geodesic Path Computation Done.. " << std::endl;
+
+  // Write Results
+  vtkSmartPointer<vtkPolyDataWriter> polywriter = vtkSmartPointer<vtkPolyDataWriter>::New();
+  polywriter->SetFileName(argv[1]);
+  polywriter->SetInputData(Geodesicpath->GetOutput());
+  polywriter->Write();
+
+
+  return EXIT_SUCCESS;
+}
+
+
