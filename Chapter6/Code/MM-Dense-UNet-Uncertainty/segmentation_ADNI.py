@@ -16,13 +16,13 @@ from metrics import get_dice, accuracy, mae
 #os.environ["CUDA_VISIBLE_DEVICES"] ="3"
 
 
-#@pytu.autosacred(name='MixedUNET', dbname='experiments')
-#def main(batch_size=4, learning_rate=0.00001, epochs=200, use_multi_gpu=True,
-#         load_weights=False,
-#         high_order_mode=True,
-#         train_model=True,
-#         check_train=False,
-#         check_valid=False):
+@pytu.autosacred(name='MixedUNET', dbname='experiments')
+def main(batch_size=4, learning_rate=0.00001, epochs=200, use_multi_gpu=True,
+         load_weights=False,
+         high_order_mode=True,
+         train_model=True,
+         check_train=False,
+         check_valid=False):
 
 batch_size=4
 learning_rate=0.00001
