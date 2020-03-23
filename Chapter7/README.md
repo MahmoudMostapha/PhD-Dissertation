@@ -1,1 +1,1 @@
-# Out-oF-Sample Detection in Heterogeneous Settings
+# Out-of-Sample Detection in Heterogeneous Settings
